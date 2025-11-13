@@ -90,7 +90,6 @@ class _VentasAdminScreenState extends State<VentasAdminScreen> {
       ),
       body: Column(
         children: [
-          // 🔵 FILTRO DE FECHAS
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -127,8 +126,6 @@ class _VentasAdminScreenState extends State<VentasAdminScreen> {
                         ),
                       ],
                     ),
-
-                    // Fecha fin
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -150,9 +147,7 @@ class _VentasAdminScreenState extends State<VentasAdminScreen> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 10),
-
                 ElevatedButton.icon(
                   onPressed: () => setState(() {}),
                   icon: const Icon(Icons.filter_alt),
@@ -163,8 +158,6 @@ class _VentasAdminScreenState extends State<VentasAdminScreen> {
               ],
             ),
           ),
-
-          // 🔵 CONTENIDO
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -198,7 +191,6 @@ class _VentasAdminScreenState extends State<VentasAdminScreen> {
 
                 return Column(
                   children: [
-                    // 📄 BOTÓN PDF
                     Padding(
                       padding: const EdgeInsets.all(12),
                       child: ElevatedButton.icon(

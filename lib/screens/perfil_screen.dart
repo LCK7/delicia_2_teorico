@@ -21,54 +21,132 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
   Future<void> _cargarPerfil() async {
     if (user == null) return;
-    final doc = await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(user!.uid)
+        .get();
+
     if (doc.exists) {
-      setState(() {
-        perfil = doc.data();
-      });
+      setState(() => perfil = doc.data());
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (user == null) {
-      return const Center(child: Text('No hay usuario autenticado.'));
+      return const Center(
+        child: Text('No hay usuario autenticado.'),
+      );
     }
-    return Padding(
-      padding: const EdgeInsets.all(16),
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const SizedBox(height: 10),
-          CircleAvatar(radius: 40, child: Text((perfil?['nombre'] ?? user!.email ?? 'U').toString().substring(0,1).toUpperCase())),
-          const SizedBox(height: 10),
-          Text(perfil?['nombre'] ?? 'Sin nombre', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Text(user!.email ?? '', style: const TextStyle(fontSize: 14)),
-          const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.phone),
-              title: Text(perfil?['telefono'] ?? 'No registrado'),
-              subtitle: const Text('Teléfono'),
+
+          // Avatar
+          CircleAvatar(
+            radius: 50,
+            backgroundColor: Colors.blue.shade100,
+            child: Text(
+              (perfil?['nombre'] ?? user!.email ?? 'U')
+                  .toString()
+                  .substring(0, 1)
+                  .toUpperCase(),
+              style: const TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: Text(perfil?['fechaRegistro'] != null ? perfil!['fechaRegistro'].toDate().toString() : 'Fecha no disponible'),
-              subtitle: const Text('Fecha de registro'),
+
+          const SizedBox(height: 12),
+
+          // Nombre
+          Text(
+            perfil?['nombre'] ?? 'Sin nombre',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.admin_panel_settings),
-              title: Text((perfil?['admin'] == true) ? 'Administrador' : 'Usuario'),
-              subtitle: const Text('Rol'),
+
+          const SizedBox(height: 4),
+
+          // Email
+          Text(
+            user!.email ?? '',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade700,
             ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Contenedor estilizado
+          _infoCard(
+            icon: Icons.phone,
+            title: perfil?['telefono'] ?? 'No registrado',
+            subtitle: 'Teléfono',
+          ),
+
+          const SizedBox(height: 12),
+
+          _infoCard(
+            icon: Icons.calendar_today,
+            title: perfil?['fechaRegistro'] != null
+                ? perfil!['fechaRegistro']
+                    .toDate()
+                    .toString()
+                    .split(' ')
+                    .first
+                : 'No disponible',
+            subtitle: 'Fecha de registro',
+          ),
+
+          const SizedBox(height: 12),
+
+          _infoCard(
+            icon: Icons.admin_panel_settings,
+            title:
+                perfil?['admin'] == true ? 'Administrador' : 'Usuario normal',
+            subtitle: 'Rol',
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _infoCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.blue.shade50,
+          child: Icon(icon, color: Colors.blue.shade700),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(subtitle),
       ),
     );
   }

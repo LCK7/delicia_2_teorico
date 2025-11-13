@@ -19,43 +19,35 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
     final doc = await FirebaseFirestore.instance.collection('productos').doc(productoId).get();
     if (doc.exists) {
       final stock = doc.data()?['stock'] ?? 0;
-      setState(() {
-        _stockActual = stock;
-      });
+      setState(() => _stockActual = stock);
     }
   }
 
   Future<void> _guardarProduccion() async {
     if (_productoId == null || _cantidadProducida <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona un producto y cantidad válida')),
-      );
+      _msg("Selecciona un producto y una cantidad válida");
       return;
     }
 
     final hoy = DateTime.now();
     final fecha = DateTime(hoy.year, hoy.month, hoy.day);
 
-    // Guardar producción
-    final docRef = FirebaseFirestore.instance.collection('produccion_diaria').doc();
-
-    await docRef.set({
+    await FirebaseFirestore.instance.collection('produccion_diaria').add({
       'productoId': _productoId,
       'cantidadProducida': _cantidadProducida,
       'fecha': fecha,
     });
 
-    // Actualizar stock
-    final productoRef = FirebaseFirestore.instance.collection('productos').doc(_productoId);
+    final productoRef =
+        FirebaseFirestore.instance.collection('productos').doc(_productoId);
     final productoSnap = await productoRef.get();
+
     if (productoSnap.exists) {
-      final stockActual = productoSnap.data()?['stock'] ?? 0;
-      await productoRef.update({'stock': stockActual + _cantidadProducida});
+      final currentStock = productoSnap.data()?['stock'] ?? 0;
+      await productoRef.update({'stock': currentStock + _cantidadProducida});
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Producción registrada y stock actualizado')),
-    );
+    _msg("Producción registrada y stock actualizado");
 
     setState(() {
       _productoId = null;
@@ -63,6 +55,10 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
       _cantidadProducida = 0;
       _cantidadController.clear();
     });
+  }
+
+  void _msg(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override
@@ -73,72 +69,142 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Colors.grey),
+    );
+
+    InputDecoration deco(String label) {
+      return InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+        border: border,
+        enabledBorder: border,
+        focusedBorder: border.copyWith(
+          borderSide: const BorderSide(color: Colors.blue, width: 1.5),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('productos')
-                .orderBy('nombre')
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const CircularProgressIndicator();
-
-              final productos = snapshot.data!.docs;
-
-              return DropdownButtonFormField<String>(
-                value: _productoId,
-                hint: const Text('Selecciona un producto'),
-                onChanged: (val) {
-                  setState(() {
-                    _productoId = val;
-                    _stockActual = 0;
-                  });
-                  if (val != null) {
-                    _cargarStock(val);
-                  }
-                },
-                items: productos.map((doc) {
-                  return DropdownMenuItem(
-                    value: doc.id,
-                    child: Text(doc['nombre']),
-                  );
-                }).toList(),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Producto',
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          if (_productoId != null)
-            Text('Stock actual: $_stockActual unidades',
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _cantidadController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Cantidad producida',
-              border: OutlineInputBorder(),
+          // Contenedor elegante
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                )
+              ],
             ),
-            onChanged: (val) {
-              setState(() {
-                _cantidadProducida = int.tryParse(val) ?? 0;
-              });
-            },
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.check),
-            onPressed: _guardarProduccion,
-            label: const Text('Registrar Producción'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade700,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              textStyle: const TextStyle(fontSize: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Registrar Producción",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Dropdown mejorado
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('productos')
+                      .orderBy('nombre')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const CircularProgressIndicator();
+
+                    final productos = snapshot.data!.docs;
+
+                    return DropdownButtonFormField<String>(
+                      value: _productoId,
+                      decoration: deco("Producto"),
+                      hint: const Text("Selecciona un producto"),
+                      borderRadius: BorderRadius.circular(12),
+                      items: productos.map((doc) {
+                        return DropdownMenuItem(
+                          value: doc.id,
+                          child: Text(doc['nombre']),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          _productoId = val;
+                          _stockActual = 0;
+                        });
+                        if (val != null) _cargarStock(val);
+                      },
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                if (_productoId != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      "Stock actual: $_stockActual unidades",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 16),
+
+                // Cantidad
+                TextField(
+                  controller: _cantidadController,
+                  keyboardType: TextInputType.number,
+                  decoration: deco("Cantidad producida"),
+                  onChanged: (val) =>
+                      setState(() => _cantidadProducida = int.tryParse(val) ?? 0),
+                ),
+
+                const SizedBox(height: 22),
+
+                // Botón mejorado
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _guardarProduccion,
+                    icon: const Icon(Icons.check, size: 22),
+                    label: const Text(
+                      "Registrar Producción",
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade700,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 4,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

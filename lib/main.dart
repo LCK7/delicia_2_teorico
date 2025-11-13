@@ -24,11 +24,29 @@ class DeliciaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Delicia',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.green,
+        primaryColor: Colors.green.shade700,
+        scaffoldBackgroundColor: Colors.grey.shade100,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.green.shade700,
+          elevation: 4,
+          centerTitle: true,
+          titleTextStyle: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          backgroundColor: Colors.white,
+          elevation: 15,
+          selectedItemColor: Colors.green.shade800,
+          unselectedItemColor: Colors.grey.shade500,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       home: const HomeScreen(),
-      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -71,50 +89,34 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
-  // 📌 VALIDACIÓN CORRECTA AHORA
   void _onItemTapped(int index) {
     final user = FirebaseAuth.instance.currentUser;
 
-    // Para USUARIOS NORMALES
-    if (!_isAdmin) {
-      // 0 = catálogo, 1 = carrito, 2 = perfil
-      if (index == 2 && user == null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => LoginScreen()),
-        );
-        return;
-      }
+    if (!_isAdmin && index == 2 && user == null) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => LoginScreen()));
+      return;
     }
 
-    // Para ADMIN
     if (_isAdmin) {
-      // 0=catalogo 1=carrito 2=CRUD 3=producción 4=perfil
       final isProtected = index == 2 || index == 3 || index == 4;
-
       if (isProtected && user == null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => LoginScreen()),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => LoginScreen()));
         return;
       }
     }
 
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: Colors.grey.shade100,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    // 👑 PÁGINAS SEGÚN ROL
     final List<Widget> pages = _isAdmin
         ? [
             CatalogoScreen(),
@@ -130,13 +132,13 @@ class _HomeScreenState extends State<HomeScreen> {
             PerfilScreen(),
           ];
 
-    final List<BottomNavigationBarItem> navItems = _isAdmin
+    final navItems = _isAdmin
         ? const [
             BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Catálogo'),
             BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Carrito'),
             BottomNavigationBarItem(icon: Icon(Icons.inventory), label: 'CRUD'),
-            BottomNavigationBarItem(icon: Icon(Icons.production_quantity_limits), label: 'Producción'),
-            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Report'),
+            BottomNavigationBarItem(icon: Icon(Icons.local_cafe), label: 'Producción'),
+            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Reportes'),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
           ]
         : const [
@@ -145,39 +147,52 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
           ];
 
-    // Evita errores si cambia el rol o se recarga
-    if (_selectedIndex >= pages.length) {
-      _selectedIndex = 0;
-    }
+    if (_selectedIndex >= pages.length) _selectedIndex = 0;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Delicia - Panadería'),
-        backgroundColor: Colors.green,
-        centerTitle: true,
+        title: Text(
+          'Panadería Delicia',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           if (FirebaseAuth.instance.currentUser != null)
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () async {
-                await FirebaseAuth.instance.signOut();
-
-                setState(() {
-                  _isAdmin = false;
-                  _selectedIndex = 0;
-                });
-              },
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: IconButton(
+                icon: Icon(Icons.logout, color: Colors.white),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  setState(() {
+                    _isAdmin = false;
+                    _selectedIndex = 0;
+                  });
+                },
+              ),
             )
         ],
       ),
-      body: SafeArea(child: pages[_selectedIndex]),
-      bottomNavigationBar: BottomNavigationBar(
-        items: navItems,
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.green.shade800,
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: pages[_selectedIndex],
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.grey.shade300)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            )
+          ],
+        ),
+        child: BottomNavigationBar(
+          items: navItems,
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
+        ),
       ),
     );
   }
