@@ -9,6 +9,7 @@ import 'screens/carrito_screen.dart';
 import 'screens/perfil_screen.dart';
 import 'screens/CRUD_screen.dart';
 import 'screens/produccion_screen.dart';
+import 'screens/ventas_admin_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,32 +27,8 @@ class DeliciaApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.green,
       ),
-      home: const AuthWrapper(),
+      home: const HomeScreen(),
       debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        final user = snapshot.data;
-        if (user == null) {
-          return const LoginScreen();
-        } else {
-          return const HomeScreen();
-        }
-      },
     );
   }
 }
@@ -76,27 +53,54 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _cargarRolUsuario() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+
+    if (user == null) {
+      _isAdmin = false;
+      _loading = false;
+      setState(() {});
+      return;
+    }
 
     final doc = await FirebaseFirestore.instance
         .collection('usuarios')
         .doc(user.uid)
         .get();
 
-    if (doc.exists && doc.data()?['admin'] == true) {
-      setState(() {
-        _isAdmin = true;
-        _loading = false;
-      });
-    } else {
-      setState(() {
-        _isAdmin = false;
-        _loading = false;
-      });
-    }
+    _isAdmin = doc.exists && doc.data()?['admin'] == true;
+    _loading = false;
+    setState(() {});
   }
 
+  // 📌 VALIDACIÓN CORRECTA AHORA
   void _onItemTapped(int index) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    // Para USUARIOS NORMALES
+    if (!_isAdmin) {
+      // 0 = catálogo, 1 = carrito, 2 = perfil
+      if (index == 2 && user == null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => LoginScreen()),
+        );
+        return;
+      }
+    }
+
+    // Para ADMIN
+    if (_isAdmin) {
+      // 0=catalogo 1=carrito 2=CRUD 3=producción 4=perfil
+      final isProtected = index == 2 || index == 3 || index == 4;
+
+      if (isProtected && user == null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => LoginScreen()),
+        );
+        return;
+      }
+    }
+
     setState(() {
       _selectedIndex = index;
     });
@@ -110,10 +114,21 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // --- Páginas disponibles según rol ---
+    // 👑 PÁGINAS SEGÚN ROL
     final List<Widget> pages = _isAdmin
-        ? const [CatalogoScreen(), CarritoScreen(), CRUDScreen(),ProduccionScreen(),PerfilScreen()]
-        : const [CatalogoScreen(), CarritoScreen(), PerfilScreen()];
+        ? [
+            CatalogoScreen(),
+            CarritoScreen(),
+            CRUDScreen(),
+            ProduccionScreen(),
+            VentasAdminScreen(),
+            PerfilScreen(),
+          ]
+        : [
+            CatalogoScreen(),
+            CarritoScreen(),
+            PerfilScreen(),
+          ];
 
     final List<BottomNavigationBarItem> navItems = _isAdmin
         ? const [
@@ -121,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Carrito'),
             BottomNavigationBarItem(icon: Icon(Icons.inventory), label: 'CRUD'),
             BottomNavigationBarItem(icon: Icon(Icons.production_quantity_limits), label: 'Producción'),
+            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Report'),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
           ]
         : const [
@@ -128,23 +144,30 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Carrito'),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
           ];
-          
-    if (!_isAdmin && _selectedIndex > pages.length - 1) {
+
+    // Evita errores si cambia el rol o se recarga
+    if (_selectedIndex >= pages.length) {
       _selectedIndex = 0;
     }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Delicia - Panadería'),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: Colors.green,
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-            },
-          )
+          if (FirebaseAuth.instance.currentUser != null)
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+
+                setState(() {
+                  _isAdmin = false;
+                  _selectedIndex = 0;
+                });
+              },
+            )
         ],
       ),
       body: SafeArea(child: pages[_selectedIndex]),

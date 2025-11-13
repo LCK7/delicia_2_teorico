@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'login_screen.dart';
 import 'catalogo_screen.dart';
 
 class SimpleCart {
@@ -76,7 +77,10 @@ class _CarritoScreenState extends State<CarritoScreen> {
   Future<void> _finalizarCompra() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Debes iniciar sesión para comprar')));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => LoginScreen()),
+      );
       return;
     }
     final items = SimpleCart.instance.items;
