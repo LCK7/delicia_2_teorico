@@ -10,6 +10,7 @@ import 'screens/perfil_screen.dart';
 import 'screens/CRUD_screen.dart';
 import 'screens/produccion_screen.dart';
 import 'screens/ventas_admin_screen.dart';
+import 'screens/gestion_pedidos_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,9 +74,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      _isAdmin = false;
-      _loading = false;
-      setState(() {});
+      setState(() {
+        _isAdmin = false;
+        _loading = false;
+      });
       return;
     }
 
@@ -84,23 +86,32 @@ class _HomeScreenState extends State<HomeScreen> {
         .doc(user.uid)
         .get();
 
-    _isAdmin = doc.exists && doc.data()?['admin'] == true;
-    _loading = false;
-    setState(() {});
+    setState(() {
+      _isAdmin = doc.exists && doc.data()?['admin'] == true;
+      _loading = false;
+    });
   }
 
   void _onItemTapped(int index) {
     final user = FirebaseAuth.instance.currentUser;
 
-    if (!_isAdmin && index == 2 && user == null) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => LoginScreen()));
+    // Si selecciona carrito/perfil pero no ha iniciado sesión → mandarlo al login
+    if (!_isAdmin && index == 1 && user == null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => LoginScreen()),
+      );
       return;
     }
 
+    // ADMIN — proteger todas las pantallas críticas
     if (_isAdmin) {
-      final isProtected = index == 2 || index == 3 || index == 4;
+      final isProtected = index != 0; // todo excepto catálogo es protegido
       if (isProtected && user == null) {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => LoginScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => LoginScreen()),
+        );
         return;
       }
     }
@@ -117,50 +128,60 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final List<Widget> pages = _isAdmin
-        ? [
-            CatalogoScreen(),
-            CarritoScreen(),
-            CRUDScreen(),
-            ProduccionScreen(),
-            VentasAdminScreen(),
-            PerfilScreen(),
-          ]
-        : [
-            CatalogoScreen(),
-            CarritoScreen(),
-            PerfilScreen(),
-          ];
+    // Pantallas disponibles
+    final userPages = [
+      CatalogoScreen(),
+      CarritoScreen(),
+      PerfilScreen(),
+    ];
 
-    final navItems = _isAdmin
-        ? const [
-            BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Catálogo'),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Carrito'),
-            BottomNavigationBarItem(icon: Icon(Icons.inventory), label: 'CRUD'),
-            BottomNavigationBarItem(icon: Icon(Icons.local_cafe), label: 'Producción'),
-            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Reportes'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-          ]
-        : const [
-            BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Catálogo'),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Carrito'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-          ];
+    final adminPages = [
+      CatalogoScreen(),
+      CarritoScreen(),
+      CRUDScreen(),
+      ProduccionScreen(),
+      GestionPedidosScreen(),
+      VentasAdminScreen(),
+      PerfilScreen(),
+    ];
 
-    if (_selectedIndex >= pages.length) _selectedIndex = 0;
+    final pages = _isAdmin ? adminPages : userPages;
+
+    final userNav = const [
+      BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Catálogo'),
+      BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Carrito'),
+      BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+    ];
+
+    final adminNav = const [
+      BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Catálogo'),
+      BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Carrito'),
+      BottomNavigationBarItem(icon: Icon(Icons.inventory), label: 'CRUD'),
+      BottomNavigationBarItem(icon: Icon(Icons.local_cafe), label: 'Producción'),
+      BottomNavigationBarItem(icon: Icon(Icons.inventory), label: 'Pedidos'),
+      BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Reportes'),
+      BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+    ];
+
+    final navItems = _isAdmin ? adminNav : userNav;
+
+    // Corrección automática si el index sobrepasa
+    if (_selectedIndex >= pages.length) {
+      _selectedIndex = 0;
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Panadería Delicia',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
           if (FirebaseAuth.instance.currentUser != null)
             Padding(
               padding: const EdgeInsets.only(right: 10),
               child: IconButton(
-                icon: Icon(Icons.logout, color: Colors.white),
+                icon: const Icon(Icons.logout, color: Colors.white),
                 onPressed: () async {
                   await FirebaseAuth.instance.signOut();
                   setState(() {
@@ -169,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   });
                 },
               ),
-            )
+            ),
         ],
       ),
       body: AnimatedSwitcher(
@@ -184,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.black.withOpacity(0.05),
               blurRadius: 8,
               offset: const Offset(0, -2),
-            )
+            ),
           ],
         ),
         child: BottomNavigationBar(

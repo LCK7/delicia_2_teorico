@@ -5,302 +5,232 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class VentasAdminScreen extends StatefulWidget {
-  const VentasAdminScreen({super.key});
-
   @override
-  State<VentasAdminScreen> createState() => _VentasAdminScreenState();
+  _VentasAdminScreenState createState() => _VentasAdminScreenState();
 }
 
 class _VentasAdminScreenState extends State<VentasAdminScreen> {
+  final DateFormat dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+
   DateTime? fechaInicio;
   DateTime? fechaFin;
 
-  final DateFormat dateFormat = DateFormat("dd/MM/yyyy");
+  Future<void> _seleccionarFecha(BuildContext context, bool inicio) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2023),
+      lastDate: DateTime.now(),
+      initialDate: DateTime.now(),
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (inicio) {
+          fechaInicio = picked;
+        } else {
+          fechaFin = picked.add(Duration(hours: 23, minutes: 59));
+        }
+      });
+    }
+  }
+
+  Stream<QuerySnapshot> _streamVentas() {
+    CollectionReference ref = FirebaseFirestore.instance.collection("ventas");
+
+    if (fechaInicio != null && fechaFin != null) {
+      return ref
+          .where("fecha", isGreaterThanOrEqualTo: Timestamp.fromDate(fechaInicio!))
+          .where("fecha", isLessThanOrEqualTo: Timestamp.fromDate(fechaFin!))
+          .orderBy("fecha", descending: true)
+          .snapshots();
+    }
+
+    return ref.orderBy("fecha", descending: true).snapshots();
+  }
 
   Future<void> _exportarPDF(List<QueryDocumentSnapshot> ventas) async {
     final pdf = pw.Document();
 
     pdf.addPage(
       pw.MultiPage(
-        build: (context) => [
-          pw.Text("Reporte de Ventas",
-              style: pw.TextStyle(
-                  fontSize: 22, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 15),
-          pw.Text(
-            "Rango: ${fechaInicio != null ? dateFormat.format(fechaInicio!) : "-"}  "
-            "→  ${fechaFin != null ? dateFormat.format(fechaFin!) : "-"}",
-          ),
-          pw.SizedBox(height: 20),
-
-          pw.Table.fromTextArray(
-            headers: ["Fecha", "Producto", "Cantidad", "Precio", "Total"],
-            data: ventas.expand((v) {
-              final data = v.data() as Map<String, dynamic>;
-              final fecha = (data["fecha"] as Timestamp?)?.toDate();
-              final productos = List<Map<String, dynamic>>.from(data["productos"]);
-
-              return productos.map((p) {
-                return [
-                  fecha != null ? dateFormat.format(fecha) : "-",
-                  p["nombre"],
-                  "${p["cantidad"]}",
-                  "S/ ${p["precio"]}",
-                  "S/ ${(p["cantidad"] * p["precio"]).toStringAsFixed(2)}",
-                ];
-              });
-            }).toList(),
-            cellStyle: const pw.TextStyle(fontSize: 10),
-          )
-        ],
+        build: (context) {
+          return [
+            pw.Text("Reporte de Ventas", style: pw.TextStyle(fontSize: 22)),
+            pw.SizedBox(height: 20),
+            pw.Table.fromTextArray(
+              headers: ["Fecha", "Producto", "Cant.", "Precio", "Total"],
+              data: ventas.expand((v) {
+                final data = v.data() as Map<String, dynamic>;
+                final fecha = (data["fecha"] as Timestamp?)?.toDate();
+                final productos = (data["productos"] as List<dynamic>? ?? [])
+                    .map((e) => Map<String, dynamic>.from(e));
+                return productos.map((p) {
+                  final cant = p["cantidad"] ?? 0;
+                  final precio = p["precio"] ?? 0;
+                  return [
+                    fecha != null ? dateFormat.format(fecha) : "-",
+                    p["nombre"] ?? "-",
+                    "$cant",
+                    "S/ $precio",
+                    "S/ ${(cant * precio).toStringAsFixed(2)}"
+                  ];
+                });
+              }).toList(),
+            ),
+          ];
+        },
       ),
     );
 
-    await Printing.layoutPdf(
-        onLayout: (format) async => pdf.save());
-  }
-
-  Future<void> _selectDate(BuildContext context, bool isStart) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2023),
-      lastDate: DateTime(2030),
-    );
-
-    if (picked != null) {
-      setState(() {
-        if (isStart) {
-          fechaInicio = picked;
-        } else {
-          fechaFin = picked;
-        }
-      });
-    }
+    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: const Text("Panel de Ventas"),
-        backgroundColor: Colors.green.shade700,
-        elevation: 3,
+        title: Text("Ventas"),
+        actions: [
+          StreamBuilder<QuerySnapshot>(
+            stream: _streamVentas(),
+            builder: (_, snap) {
+              if (!snap.hasData) return SizedBox();
+              return IconButton(
+                icon: Icon(Icons.picture_as_pdf),
+                onPressed: () => _exportarPDF(snap.data!.docs),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
-                BoxShadow(
-                    blurRadius: 4,
-                    color: Colors.black12,
-                    offset: Offset(0, 2))
+                BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))
               ],
             ),
-            child: Column(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Column(
                   children: [
-                    // Fecha inicio
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Desde:",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold)),
-                        Text(
-                          fechaInicio != null
-                              ? dateFormat.format(fechaInicio!)
-                              : "-",
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        TextButton.icon(
-                          onPressed: () => _selectDate(context, true),
-                          icon: const Icon(Icons.calendar_today, size: 16),
-                          label: const Text("Elegir fecha"),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Hasta:",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold)),
-                        Text(
-                          fechaFin != null
-                              ? dateFormat.format(fechaFin!)
-                              : "-",
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        TextButton.icon(
-                          onPressed: () => _selectDate(context, false),
-                          icon: const Icon(Icons.calendar_today, size: 16),
-                          label: const Text("Elegir fecha"),
-                        ),
-                      ],
+                    Text("Inicio", style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                    TextButton(
+                      onPressed: () => _seleccionarFecha(context, true),
+                      child: Text(
+                        fechaInicio != null ? DateFormat('dd/MM/yy').format(fechaInicio!) : "Elegir",
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                ElevatedButton.icon(
-                  onPressed: () => setState(() {}),
-                  icon: const Icon(Icons.filter_alt),
-                  label: const Text("Aplicar Filtro"),
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade700),
+                Column(
+                  children: [
+                    Text("Fin", style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                    TextButton(
+                      onPressed: () => _seleccionarFecha(context, false),
+                      child: Text(
+                        fechaFin != null ? DateFormat('dd/MM/yy').format(fechaFin!) : "Elegir",
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: Icon(Icons.clear, color: Colors.red),
+                  onPressed: () {
+                    setState(() {
+                      fechaInicio = null;
+                      fechaFin = null;
+                    });
+                  },
                 )
               ],
             ),
           ),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('ventas')
-                  .orderBy('fecha', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
+              stream: _streamVentas(),
+              builder: (_, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(
-                      child: CircularProgressIndicator());
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.data!.docs.isEmpty) {
+                  return Center(child: Text("No hay ventas registradas"));
                 }
 
                 final ventas = snapshot.data!.docs;
 
-                // FILTRAR POR FECHA
-                final ventasFiltradas = ventas.where((v) {
-                  final data = v.data() as Map<String, dynamic>;
-                  final fecha = (data["fecha"] as Timestamp?)?.toDate();
+                return ListView.builder(
+                  padding: EdgeInsets.all(12),
+                  itemCount: ventas.length,
+                  itemBuilder: (_, index) {
+                    final data = ventas[index].data() as Map<String, dynamic>;
+                    final productos = (data["productos"] as List<dynamic>? ?? [])
+                        .map((e) => Map<String, dynamic>.from(e))
+                        .toList();
+                    final fecha = (data["fecha"] as Timestamp?)?.toDate();
+                    final total = productos.fold<double>(
+                      0,
+                      (sum, p) =>
+                          sum + ((p["precio"] ?? 0) * (p["cantidad"] ?? 0)),
+                    );
 
-                  if (fecha == null) return false;
-
-                  if (fechaInicio != null && fecha.isBefore(fechaInicio!)) {
-                    return false;
-                  }
-                  if (fechaFin != null && fecha.isAfter(fechaFin!)) {
-                    return false;
-                  }
-
-                  return true;
-                }).toList();
-
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: ElevatedButton.icon(
-                        onPressed: ventasFiltradas.isEmpty
-                            ? null
-                            : () => _exportarPDF(ventasFiltradas),
-                        icon: const Icon(Icons.picture_as_pdf),
-                        label: const Text("Exportar PDF"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade600,
-                        ),
-                      ),
-                    ),
-
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: ventasFiltradas.length,
-                        itemBuilder: (context, index) {
-                          final data = ventasFiltradas[index].data()
-                              as Map<String, dynamic>;
-                          final fecha =
-                              (data["fecha"] as Timestamp?)?.toDate();
-
-                          return Card(
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            elevation: 3,
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    fecha != null
-                                        ? dateFormat.format(fecha)
-                                        : "Sin fecha",
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: Colors.green.shade700),
-                                  ),
-
-                                  const SizedBox(height: 6),
-
-                                  ...List<Map<String, dynamic>>.from(
-                                          data['productos'])
-                                      .map((p) => Padding(
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                                    vertical: 2),
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                Text(
-                                                  p["nombre"],
-                                                  style: const TextStyle(
-                                                      fontSize: 15),
-                                                ),
-                                                Text(
-                                                  "x${p["cantidad"]}",
-                                                  style: TextStyle(
-                                                      color:
-                                                          Colors.grey[700]),
-                                                ),
-                                                Text(
-                                                  "S/ ${(p["precio"] * p["cantidad"]).toStringAsFixed(2)}",
-                                                  style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                                )
-                                              ],
-                                            ),
-                                          ))
-                                      .toList(),
-
-                                  const Divider(),
-
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                    return Card(
+                      margin: EdgeInsets.only(bottom: 12),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: Padding(
+                        padding: EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              fecha != null ? dateFormat.format(fecha) : "-",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            SizedBox(height: 10),
+                            Column(
+                              children: productos.map((p) {
+                                return Container(
+                                  padding: EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      const Text("Total:",
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight:
-                                                  FontWeight.bold)),
+                                      Expanded(child: Text(p["nombre"] ?? "-", maxLines: 1)),
+                                      Text("x${p["cantidad"] ?? 0}"),
                                       Text(
-                                        "S/ ${data["total"].toStringAsFixed(2)}",
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            color: Colors.green.shade800,
-                                            fontWeight: FontWeight.bold),
+                                        "S/ ${((p["precio"] ?? 0) * (p["cantidad"] ?? 0)).toStringAsFixed(2)}",
+                                        style: TextStyle(fontWeight: FontWeight.bold),
                                       )
                                     ],
-                                  )
-                                ],
-                              ),
+                                  ),
+                                );
+                              }).toList(),
                             ),
-                          );
-                        },
+                            Divider(),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Total:", style: TextStyle(fontSize: 16)),
+                                Text(
+                                  "S/ ${total.toStringAsFixed(2)}",
+                                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                                )
+                              ],
+                            )
+                          ],
+                        ),
                       ),
-                    )
-                  ],
+                    );
+                  },
                 );
               },
             ),
-          )
+          ),
         ],
       ),
     );
