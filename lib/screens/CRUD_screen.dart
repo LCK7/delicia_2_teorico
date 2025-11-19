@@ -59,27 +59,63 @@ class _CRUDScreenState extends State<CRUDScreen> {
   }
 
   bool _validarCampos() {
-    if (_nombre.text.isEmpty ||
-        _descripcion.text.isEmpty ||
-        _precio.text.isEmpty ||
-        _imagen.text.isEmpty) {
-      _msg("Por favor completa todos los campos");
+    final nombre = _nombre.text.trim();
+    final descripcion = _descripcion.text.trim();
+    final precioTxt = _precio.text.trim();
+    final imagen = _imagen.text.trim();
+    final stockTxt = _stock.text.trim();
+
+    // Validar nombre
+    if (nombre.isEmpty || nombre.length < 3) {
+      _msg("El nombre debe tener al menos 3 caracteres.");
       return false;
     }
 
-    if (_stock.text.isEmpty || int.tryParse(_stock.text) == null) {
-      _msg("El stock debe ser un número válido");
+    // Validar descripción
+    if (descripcion.isEmpty || descripcion.length < 10) {
+      _msg("La descripción debe tener al menos 10 caracteres.");
       return false;
     }
 
-    final precio = double.tryParse(_precio.text);
-    if (precio == null || precio <= 0) {
-      _msg("Ingresa un precio válido mayor que 0");
+    // Validar precio
+    final precio = double.tryParse(precioTxt);
+    if (precio == null) {
+      _msg("El precio debe ser un número válido.");
+      return false;
+    }
+    if (precio <= 0) {
+      _msg("El precio debe ser mayor a 0.");
+      return false;
+    }
+    if (precio > 500) {
+      _msg("El precio es demasiado alto. Revisa si te equivocaste.");
       return false;
     }
 
-    if (!_imagen.text.contains('drive.google.com')) {
-      _msg("Ingresa un enlace válido de Google Drive");
+    // Validar imagen
+    if (imagen.isEmpty) {
+      _msg("Ingresa el enlace de la imagen.");
+      return false;
+    }
+
+    if (!imagen.contains("drive.google.com") ||
+        !(imagen.contains("/d/") || imagen.contains("?id="))) {
+      _msg("El enlace debe ser de Google Drive con formato válido.");
+      return false;
+    }
+
+    // Validar stock
+    final stock = int.tryParse(stockTxt);
+    if (stock == null) {
+      _msg("El stock debe ser un número entero.");
+      return false;
+    }
+    if (stock < 0) {
+      _msg("El stock no puede ser negativo.");
+      return false;
+    }
+    if (stock > 1000) {
+      _msg("Stock excesivo. Ingresa un valor realista.");
       return false;
     }
 

@@ -1,3 +1,4 @@
+// CÓDIGO COMPLETO DE pedido_detalle_screen.dart (ACTUALIZADO)
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -14,6 +15,19 @@ class PedidoDetalleScreen extends StatefulWidget {
   @override
   State<PedidoDetalleScreen> createState() => _PedidoDetalleScreenState();
 }
+
+String convertirEnlaceDriveADirecto(String url) {
+  if (url.contains("drive.google.com")) {
+    final regex = RegExp(r"[-\w]{25,}");
+    final match = regex.firstMatch(url);
+    if (match != null) {
+      final id = match.group(0);
+      return "https://drive.google.com/uc?export=view&id=$id";
+    }
+  }
+  return url;
+}
+
 
 class _PedidoDetalleScreenState extends State<PedidoDetalleScreen> {
   bool _procesando = false;
@@ -37,6 +51,7 @@ class _PedidoDetalleScreenState extends State<PedidoDetalleScreen> {
 
       final batch = FirebaseFirestore.instance.batch();
 
+      // Actualizar stock
       for (var it in items) {
         final ref = FirebaseFirestore.instance.collection('productos').doc(it['id']);
         final snap = await ref.get();
@@ -51,25 +66,26 @@ class _PedidoDetalleScreenState extends State<PedidoDetalleScreen> {
         batch.update(ref, {"stock": nuevo});
       }
 
+      // Crear VENTA correcta para tu pantalla admin
       final ventaRef = FirebaseFirestore.instance.collection('ventas').doc();
       batch.set(ventaRef, {
         "usuarioId": widget.data['usuarioId'],
         "fecha": FieldValue.serverTimestamp(),
-        "items": items,
+        "productos": items,       // <--- NOMBRE CORRECTO
         "total": widget.data['total'],
       });
 
-      batch.update(
-        FirebaseFirestore.instance.collection('pedidos').doc(widget.id),
-        {
-          "estado": "aprobado",
-          "fecha_aprobado": FieldValue.serverTimestamp(),
-        },
-      );
+      // Actualizar pedido
+      final pedidoRef = FirebaseFirestore.instance.collection('pedidos').doc(widget.id);
+      batch.update(pedidoRef, {
+        "estado": "aprobado",
+        "fecha_aprobado": FieldValue.serverTimestamp(),
+      });
 
       await batch.commit();
 
       if (mounted) Navigator.pop(context);
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("ERROR: $e")),
@@ -153,11 +169,12 @@ class _PedidoDetalleScreenState extends State<PedidoDetalleScreen> {
                               borderRadius: BorderRadius.circular(8),
                               child: it['imagen'] != null
                                   ? Image.network(
-                                      it['imagen'],
+                                      convertirEnlaceDriveADirecto(it['imagen']),
                                       width: 55,
                                       height: 55,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported),
+                                      errorBuilder: (_, __, ___) =>
+                                          const Icon(Icons.image_not_supported),
                                     )
                                   : const Icon(Icons.image),
                             ),

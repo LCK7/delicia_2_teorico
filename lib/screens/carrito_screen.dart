@@ -2,80 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
+import 'checkout_screen.dart';
 
 class SimpleCart {
-  String convertirEnlaceDriveADirecto(String url) {
-    if (url.isEmpty) return url;
-    if (url.contains("drive.google.com")) {
-      final regExp = RegExp(r'd/([a-zA-Z0-9_-]+)');
-      final match = regExp.firstMatch(url);
-      if (match != null) {
-        final fileId = match.group(1);
-        return "https://drive.google.com/uc?export=view&id=$fileId";
-      }
+  SimpleCart._private();
+  static final SimpleCart instance = SimpleCart._private();
+
+  final Map<String, Map<String, dynamic>> raw = {};
+
+  List<Map<String, dynamic>> get items => raw.values.toList();
+
+  double get total {
+    double t = 0;
+    for (var it in raw.values) {
+      t += (it['precio'] as num) * (it['cantidad'] as int);
     }
-    if (url.contains("?id=")) {
-      final id = url.split("?id=").last;
-      return "https://drive.google.com/uc?export=view&id=$id";
-    }
-    return url;
+    return t;
   }
 
-  SimpleCart._privateConstructor();
-  static final SimpleCart instance = SimpleCart._privateConstructor();
-
-  final Map<String, Map<String, dynamic>> _items = {};
-
-  List<Map<String, dynamic>> get items => _items.values.toList();
-
-  Map<String, Map<String, dynamic>> get raw => _items;
-
-  void addItem(Map<String, dynamic> producto) {
-    final id = producto['id'] ?? producto['nombre'];
-    final imagen = convertirEnlaceDriveADirecto(producto['imagen'] ?? '');
-    if (_items.containsKey(id)) {
-      _items[id]!['cantidad']++;
+  void addItem(Map<String, dynamic> item) {
+    final id = item['id'];
+    if (raw.containsKey(id)) {
+      raw[id]!['cantidad']++;
     } else {
-      _items[id] = {
-        'id': id,
-        'nombre': producto['nombre'],
-        'precio': producto['precio'],
-        'cantidad': 1,
-        'stock': producto['stock'],
-        'imagen': imagen,
-      };
+      raw[id] = {...item, 'cantidad': 1};
     }
   }
 
   void increment(String id) {
-    if (_items.containsKey(id)) {
-      final item = _items[id]!;
-      if (item['cantidad'] < item['stock']) {
-        item['cantidad']++;
-      }
-    }
+    raw[id]!['cantidad']++;
   }
 
   void decrement(String id) {
-    if (_items.containsKey(id)) {
-      if (_items[id]!['cantidad'] > 1) {
-        _items[id]!['cantidad']--;
-      } else {
-        _items.remove(id);
-      }
+    if (raw[id]!['cantidad'] > 1) {
+      raw[id]!['cantidad']--;
+    } else {
+      raw.remove(id);
     }
   }
 
-  void removeItem(String id) => _items.remove(id);
+  void removeItem(String id) {
+    raw.remove(id);
+  }
 
-  void clear() => _items.clear();
-
-  double get total {
-    double t = 0;
-    for (var it in _items.values) {
-      t += (it['precio'] as num) * (it['cantidad'] as int);
-    }
-    return t;
+  void clear() {
+    raw.clear();
   }
 }
 
@@ -86,116 +57,150 @@ class CarritoScreen extends StatefulWidget {
 }
 
 class _CarritoScreenState extends State<CarritoScreen> {
-  bool _procesando = false;
 
-  Future<void> _crearPedido() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => LoginScreen()));
-      return;
+  // 👉 FUNCIÓN PARA CONVERTIR LINK DE DRIVE A DIRECTO
+  String convertirEnlaceDriveADirecto(String url) {
+    if (url.contains("drive.google.com")) {
+      final regex = RegExp(r"[-\w]{25,}");
+      final match = regex.firstMatch(url);
+      if (match != null) {
+        final id = match.group(0);
+        return "https://drive.google.com/uc?export=view&id=$id";
+      }
     }
-    final items = SimpleCart.instance.items;
-    if (items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Carrito vacío')));
-      return;
-    }
-    setState(() => _procesando = true);
-    try {
-      final usuarioDoc = await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).get();
-      final direccion = usuarioDoc.exists && usuarioDoc.data()!.containsKey('direccion') ? usuarioDoc['direccion'] : '';
-      final pedido = {
-        'usuarioId': user.uid,
-        'email': user.email,
-        'fecha': FieldValue.serverTimestamp(),
-        'estado': 'pendiente',
-        'direccion': direccion,
-        'items': items.map((it) => {
-          'id': it['id'],
-          'nombre': it['nombre'],
-          'precio': it['precio'],
-          'cantidad': it['cantidad'],
-          'imagen': it['imagen'],
-          'subtotal': (it['precio'] as num) * (it['cantidad'] as int)
-        }).toList(),
-        'total': SimpleCart.instance.total
-      };
-      await FirebaseFirestore.instance.collection('pedidos').add(pedido);
-      SimpleCart.instance.clear();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido creado. Espera confirmación.')));
-      setState(() {});
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
-    } finally {
-      setState(() => _procesando = false);
-    }
+    return url;
   }
 
   @override
   Widget build(BuildContext context) {
     final items = SimpleCart.instance.items;
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Tu Carrito', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Text('Revisa tus productos antes de confirmar', style: TextStyle(fontSize: 14, color: Colors.grey.shade700)),
-          const SizedBox(height: 16),
+          const Text(
+            'Tu Carrito',
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Revisa tus productos antes de confirmar',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          const SizedBox(height: 20),
+
           Expanded(
             child: items.isEmpty
-                ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.remove_shopping_cart, size: 60, color: Colors.grey.shade500),
-                      const SizedBox(height: 10),
-                      Text('No hay productos en el carrito', style: TextStyle(fontSize: 16, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-                    ],
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.shopping_bag_outlined,
+                            size: 75, color: Colors.grey.shade500),
+                        const SizedBox(height: 14),
+                        Text(
+                          'No hay productos en el carrito',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
                   )
                 : ListView.builder(
                     physics: const BouncingScrollPhysics(),
                     itemCount: items.length,
                     itemBuilder: (context, i) {
                       final it = items[i];
+
+                      // 👉 Convertir enlace de Drive aquí
+                      final imgUrl =
+                          convertirEnlaceDriveADirecto(it['imagen']);
+
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 3))],
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.network(it['imagen'], width: 65, height: 65, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.bakery_dining, size: 40)),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                imgUrl,
+                                width: 75,
+                                height: 75,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const Icon(Icons.bakery_dining, size: 40),
+                              ),
                             ),
-                            const SizedBox(width: 14),
+
+                            const SizedBox(width: 16),
+
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(it['nombre'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 6),
+                                  Text(
+                                    it['nombre'],
+                                    style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+
                                   Row(
                                     children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.remove_circle_outline, size: 22),
-                                        onPressed: () {
-                                          setState(() => SimpleCart.instance.decrement(it['id']));
+                                      _contadorBtn(
+                                        icon: Icons.remove,
+                                        onTap: () {
+                                          setState(() =>
+                                              SimpleCart.instance.decrement(it['id']));
                                         },
                                       ),
-                                      Text('${it['cantidad']}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                      IconButton(
-                                        icon: const Icon(Icons.add_circle_outline, size: 22),
-                                        onPressed: () {
-                                          final item = SimpleCart.instance.raw[it['id']]!;
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        '${it['cantidad']}',
+                                        style: const TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      _contadorBtn(
+                                        icon: Icons.add,
+                                        onTap: () {
+                                          final item =
+                                              SimpleCart.instance.raw[it['id']]!;
                                           if (item['cantidad'] >= item['stock']) {
-                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Stock máximo alcanzado para ${item['nombre']}'), duration: const Duration(milliseconds: 600)));
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                    'Stock máximo alcanzado para ${item['nombre']}'),
+                                                duration: Duration(milliseconds: 700),
+                                              ),
+                                            );
                                             return;
                                           }
-                                          setState(() => SimpleCart.instance.increment(it['id']));
+                                          setState(() =>
+                                              SimpleCart.instance.increment(it['id']));
                                         },
                                       ),
                                     ],
@@ -203,11 +208,26 @@ class _CarritoScreenState extends State<CarritoScreen> {
                                 ],
                               ),
                             ),
+
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text('S/ ${(it['precio'] * it['cantidad']).toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
-                                IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => setState(() => SimpleCart.instance.removeItem(it['id']))),
+                                Text(
+                                  'S/ ${(it['precio'] * it['cantidad']).toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.red),
+                                  onPressed: () {
+                                    setState(() =>
+                                        SimpleCart.instance.removeItem(it['id']));
+                                  },
+                                ),
                               ],
                             ),
                           ],
@@ -216,30 +236,86 @@ class _CarritoScreenState extends State<CarritoScreen> {
                     },
                   ),
           ),
-          const SizedBox(height: 10),
-          Text('Total: S/ ${SimpleCart.instance.total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
-          const SizedBox(height: 14),
-          _procesando
-              ? const Center(child: CircularProgressIndicator())
-              : Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: items.isEmpty ? null : _crearPedido,
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                        child: const Text('Confirmar pedido', style: TextStyle(fontSize: 16)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () => setState(() => SimpleCart.instance.clear()),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade500, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                      child: const Text('Vaciar'),
-                    ),
-                  ],
-                )
+
+          const SizedBox(height: 18),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Total:',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(
+                'S/ ${SimpleCart.instance.total.toStringAsFixed(2)}',
+                style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 18),
+
+          _botonesFooter(items),
         ],
       ),
+    );
+  }
+
+  Widget _contadorBtn({required IconData icon, required VoidCallback onTap}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        shape: BoxShape.circle,
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(icon, size: 20),
+        ),
+      ),
+    );
+  }
+
+  Widget _botonesFooter(List items) {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton(
+            onPressed: items.isEmpty
+                ? null
+                : () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+                    );
+                    setState(() {});
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade700,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            child: const Text(
+              "Ir al Checkout",
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        ElevatedButton(
+          onPressed: () => setState(() => SimpleCart.instance.clear()),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey.shade500,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('Vaciar'),
+        ),
+      ],
     );
   }
 }
