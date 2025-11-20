@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'login_screen.dart';
 import 'package:flutter/material.dart';
 import 'checkout_screen.dart';
 
@@ -284,10 +286,20 @@ class _CarritoScreenState extends State<CarritoScreen> {
             onPressed: items.isEmpty
                 ? null
                 : () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
-                    );
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) {
+                      // Usuario no logueado → ir al login
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => LoginScreen()),
+                      );
+                    } else {
+                      // Usuario logueado → ir al checkout
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+                      );
+                    }
                     setState(() {});
                   },
             style: ElevatedButton.styleFrom(
@@ -305,10 +317,8 @@ class _CarritoScreenState extends State<CarritoScreen> {
           onPressed: () => setState(() => SimpleCart.instance.clear()),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.grey.shade500,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           child: const Text('Vaciar'),
         ),

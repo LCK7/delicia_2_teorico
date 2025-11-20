@@ -95,8 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onItemTapped(int index) {
     final user = FirebaseAuth.instance.currentUser;
 
-    // Si selecciona carrito/perfil pero no ha iniciado sesión → mandarlo al login
-    if (!_isAdmin && index == 1 && user == null) {
+    if (!_isAdmin && index == 2 && user == null) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => LoginScreen()),
@@ -104,9 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // ADMIN — proteger todas las pantallas críticas
     if (_isAdmin) {
-      final isProtected = index != 0; // todo excepto catálogo es protegido
+      final isProtected = index != 0;
       if (isProtected && user == null) {
         Navigator.push(
           context,
@@ -127,8 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-
-    // Pantallas disponibles
+    //Pantallas
     final userPages = [
       CatalogoScreen(),
       CarritoScreen(),
@@ -147,12 +144,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final pages = _isAdmin ? adminPages : userPages;
 
+    //Navegacion por defecto
     final userNav = const [
       BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Catálogo'),
       BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Carrito'),
       BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
     ];
-
+    //Navegacion cuando el usuario es admin
     final adminNav = const [
       BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Catálogo'),
       BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Carrito'),
@@ -202,7 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
           border: Border(top: BorderSide(color: Colors.grey.shade300)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
