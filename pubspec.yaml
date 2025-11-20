@@ -1,50 +1,40 @@
 name: delicia_1
 description: "A new Flutter project."
-# The following line prevents the package from being accidentally published to
-# pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-
-  sdk: '>=3.0.0 <4.0.0' 
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  
-  firebase_core: ^4.1.1
+
+  firebase_core: ^4.2.1
   firebase_auth: ^6.1.0
   cloud_firestore: ^6.0.2
   intl: ^0.19.0
   pdf: ^3.10.6
   printing: ^5.12.0
-  
-  flutter_launcher_icons: ^0.13.1
-  flutter_native_splash: ^2.3.10
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
   flutter_lints: ^5.0.0
-
+  flutter_launcher_icons: ^0.13.1
 
 flutter_native_splash:
   color: "#F2F8FB"
   image: assets/images/app_logo.png
 
 flutter_launcher_icons:
-  android: "launcher_icon" 
-  ios: true 
+  android: true
+  ios: true
   image_path: "assets/images/app_logo.png"
-  min_sdk_android: 21 
+  min_sdk_android: 21
   remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
-
-  # assets:
-  #   - images/

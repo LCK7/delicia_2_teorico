@@ -77,13 +77,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'email': user.email,
         'fecha': FieldValue.serverTimestamp(),
         'estado': 'pendiente',
-
-        // NUEVOS CAMPOS
         'direccion': _direccionCtrl.text.trim(),
         'referencia': _referenciaCtrl.text.trim(),
         'tipoEntrega': _tipoEntrega,
         'tipoPago': _tipoPago,
-
         'items': items.map((it) => {
               'id': it['id'],
               'nombre': it['nombre'],
@@ -92,7 +89,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               'subtotal': (it['precio'] as num) * (it['cantidad'] as int),
               'imagen': it['imagen'],
             }).toList(),
-
         'total': SimpleCart.instance.total,
       };
 
@@ -121,6 +117,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Checkout"),
+        backgroundColor: Colors.green.shade700,
       ),
       body: Padding(
         padding: const EdgeInsets.all(18),
@@ -129,72 +126,120 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           children: [
             const Text(
               "Confirmar Pedido",
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 20),
-
-            // Dirección
-            TextField(
-              controller: _direccionCtrl,
-              decoration: const InputDecoration(
-                labelText: "Dirección de entrega",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Referencia
-            TextField(
-              controller: _referenciaCtrl,
-              decoration: const InputDecoration(
-                labelText: "Referencia",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Tipo de entrega
-            const Text("Lugar de entrega"),
-            DropdownButton<String>(
-              value: _tipoEntrega,
-              items: const [
-                DropdownMenuItem(value: "Domicilio", child: Text("Domicilio")),
-                DropdownMenuItem(value: "Tienda", child: Text("Recoger en tienda")),
-              ],
-              onChanged: (v) => setState(() => _tipoEntrega = v!),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Tipo de pago
-            const Text("Tipo de pago"),
-            DropdownButton<String>(
-              value: _tipoPago,
-              items: const [
-                DropdownMenuItem(value: "Efectivo", child: Text("Efectivo")),
-                DropdownMenuItem(value: "Yape", child: Text("Yape")),
-                DropdownMenuItem(value: "Plin", child: Text("Plin")),
-                DropdownMenuItem(value: "Tarjeta", child: Text("Tarjeta")),
-              ],
-              onChanged: (v) => setState(() => _tipoPago = v!),
-            ),
-
             const SizedBox(height: 25),
 
-            Text(
-              "Total a pagar:",
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+            // Dirección
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: TextField(
+                  controller: _direccionCtrl,
+                  decoration: const InputDecoration(
+                    labelText: "Dirección de entrega",
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
             ),
-            Text(
-              "S/ ${total.toStringAsFixed(2)}",
-              style: const TextStyle(
-                  fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
-            ),
+            const SizedBox(height: 15),
 
+            // Referencia
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: TextField(
+                  controller: _referenciaCtrl,
+                  decoration: const InputDecoration(
+                    labelText: "Referencia",
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 15),
+
+            // Tipo de entrega
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: DropdownButtonFormField<String>(
+                  value: _tipoEntrega,
+                  decoration: const InputDecoration(
+                    labelText: "Lugar de entrega",
+                    border: InputBorder.none,
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                        value: "Domicilio", child: Text("Domicilio")),
+                    DropdownMenuItem(
+                        value: "Tienda", child: Text("Recoger en tienda")),
+                  ],
+                  onChanged: (v) => setState(() => _tipoEntrega = v!),
+                ),
+              ),
+            ),
+            const SizedBox(height: 15),
+
+            // Tipo de pago
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: DropdownButtonFormField<String>(
+                  value: _tipoPago,
+                  decoration: const InputDecoration(
+                    labelText: "Tipo de pago",
+                    border: InputBorder.none,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: "Efectivo", child: Text("Efectivo")),
+                    DropdownMenuItem(value: "Yape", child: Text("Yape")),
+                    DropdownMenuItem(value: "Plin", child: Text("Plin")),
+                    DropdownMenuItem(
+                        value: "Tarjeta", child: Text("Tarjeta")),
+                  ],
+                  onChanged: (v) => setState(() => _tipoPago = v!),
+                ),
+              ),
+            ),
+            const SizedBox(height: 25),
+
+            // Total
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    "Total a pagar:",
+                    style: TextStyle(
+                        fontSize: 18, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    "S/ ${total.toStringAsFixed(2)}",
+                    style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black),
+                  ),
+                ],
+              ),
+            ),
             const Spacer(),
 
+            // Botón
             _procesando
                 ? const Center(child: CircularProgressIndicator())
                 : SizedBox(
@@ -202,15 +247,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     child: ElevatedButton(
                       onPressed: _confirmarPedido,
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        backgroundColor: Colors.green.shade700,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       child: const Text(
                         "Confirmar Pedido",
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 18),
                       ),
                     ),
                   ),

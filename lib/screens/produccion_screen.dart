@@ -131,7 +131,7 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
                     final productos = snapshot.data!.docs;
 
                     return DropdownButtonFormField<String>(
-                      value: _productoId,
+                      initialValue: _productoId,
                       decoration: deco("Producto"),
                       hint: const Text("Selecciona un producto"),
                       borderRadius: BorderRadius.circular(12),

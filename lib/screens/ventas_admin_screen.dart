@@ -5,6 +5,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class VentasAdminScreen extends StatefulWidget {
+  const VentasAdminScreen({super.key});
+
   @override
   _VentasAdminScreenState createState() => _VentasAdminScreenState();
 }
