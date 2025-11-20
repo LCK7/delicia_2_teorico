@@ -1,47 +1,22 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-def signingProperties = new Properties()
-def keyPropertiesFile = new File(rootProject.projectDir, "android/key.properties")
-if (keyPropertiesFile.exists()) {
-    keyPropertiesFile.withReader("UTF-8") { reader ->
-        signingProperties.load(reader)
-    }
-}
-
 android {
-
-    signingConfigs {
-        release {
-            storeFile file(signingProperties.getProperty('storeFile'))
-            storePassword signingProperties.getProperty('storePassword')
-            keyAlias signingProperties.getProperty('keyAlias')
-            keyPassword signingProperties.getProperty('keyPassword')
-        }
-    }
-
-    buildTypes {
-        release {
-            signingConfig signingConfigs.release
-        }
-    }
-
     namespace = "com.example.delicia_1"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -67,5 +42,3 @@ android {
 flutter {
     source = "../.."
 }
-
-apply(plugin = "com.google.gms.google-services")
