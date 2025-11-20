@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'login_screen.dart';
 import 'checkout_screen.dart';
 
 class SimpleCart {
@@ -130,7 +127,7 @@ class _CarritoScreenState extends State<CarritoScreen> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: const Color(0x0D000000),
                               blurRadius: 8,
                               offset: const Offset(0, 3),
                             ),

@@ -6,7 +6,31 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+def signingProperties = new Properties()
+def keyPropertiesFile = new File(rootProject.projectDir, "android/key.properties")
+if (keyPropertiesFile.exists()) {
+    keyPropertiesFile.withReader("UTF-8") { reader ->
+        signingProperties.load(reader)
+    }
+}
+
 android {
+
+    signingConfigs {
+        release {
+            storeFile file(signingProperties.getProperty('storeFile'))
+            storePassword signingProperties.getProperty('storePassword')
+            keyAlias signingProperties.getProperty('keyAlias')
+            keyPassword signingProperties.getProperty('keyPassword')
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+
     namespace = "com.example.delicia_1"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion

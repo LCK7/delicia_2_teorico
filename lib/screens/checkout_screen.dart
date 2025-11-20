@@ -14,7 +14,6 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _procesando = false;
   String _direccion = "";
-  String _referencia = "";
   String _tipoEntrega = "Domicilio";
   String _tipoPago = "Efectivo";
 

@@ -53,7 +53,7 @@ class GestionPedidosScreen extends StatelessWidget {
             itemCount: pedidos.length,
             itemBuilder: (context, index) {
               final doc = pedidos[index];
-              final data = doc.data() as Map<String, dynamic>;
+              final data = doc.data();
               final estado = data['estado'];
 
               return Container(
